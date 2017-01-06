@@ -1,4 +1,3 @@
-sajlas
 #include <ICMPPing.h>
 
 #include <SD.h>
@@ -35,12 +34,13 @@ EthernetClient client;
 unsigned long webUnixTime (Client &client);
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   if (!SD.begin(SD_CS)) {
     Serial.println(F("SD card failed, or not present"));
     // don't do anything more:
-    return;
+    for(;;)
+      ;
   }
   Serial.println(F("SD card initialized."));  
 
@@ -49,7 +49,7 @@ void setup() {
     Serial.println(F("Failed to configure Ethernet using DHCP"));
     // try to congifure using IP address instead of DHCP:
     //Ethernet.begin(mac, ip);
-        // no point in carrying on, so do nothing forevermore:
+    // no point in carrying on, so do nothing forevermore:
     for(;;)
       ;
   }
@@ -69,18 +69,20 @@ void setup() {
     now();
     delay(5000);    
   }
+  char dateTime[19];
+  sprintf(dateTime, "%d/%d/%d %d:%d:%d ", month(),day(),year(),hour(),minute(),second());
+
   sprintf(fileName, "16-%d-%d.log",month(),day());
   Serial.print(F("Log name: "));
   Serial.println(fileName);
   dataFile = SD.open(fileName, FILE_WRITE);
 
   if (dataFile) {
+    dataFile.print(dateTime);
     dataFile.print("Obtained IP: ");
     dataFile.println(Ethernet.localIP());
     dataFile.flush();
-  } else {
-    Serial.println(F("Open file failed"));
-  }      
+  }   
 
 }
 
@@ -95,28 +97,24 @@ void loop() {
 //  Serial.print(F("Log name: "));
 //  Serial.println(fileName);
 //  File dataFile = SD.open(fileName, FILE_WRITE);
-
-  if ( ! dataFile ) {
-    Serial.println("File open failed");
-  }
   unsigned long now = millis();    
   ICMPEchoReply echoReply = ping(pingAddr, 4);
   if (echoReply.status == SUCCESS)
   {
 
     Serial.print(dateTime);
-    Serial.println(F(" Got Ping"));
+    Serial.println(F("Got Ping"));
     if ( outage ) {
       unsigned int duration = now - outage;
       Serial.print(dateTime);
-      Serial.print(F(" Internet was out for "));
+      Serial.print(F("Internet was out for "));
       Serial.print(duration / 1000);
-      Serial.println(F(" msec"));             
+      Serial.println(F(" sec"));             
       if (dataFile) {
         dataFile.print(dateTime);
-        dataFile.print(F(" Internet was out for "));
+        dataFile.print(F("Internet was out for "));
         dataFile.print(duration / 1000);
-        dataFile.println(F(" msec"));
+        dataFile.println(F(" sec"));
         dataFile.flush();
       }    
       // reset outage
@@ -132,13 +130,13 @@ void loop() {
       outage = now;    
       if (dataFile) {
         dataFile.print(dateTime);
-        dataFile.println(F(" Connectivity failing starts"));
+        dataFile.println(F("Connectivity failing starts"));
         dataFile.flush();        
       }
     }
   }
   
-  delay(3000);
+  delay(1000);
 }
 
 
@@ -153,7 +151,7 @@ unsigned long webUnixTime (Client &client)
   unsigned long time = 0;
 
   // Just choose any reasonably busy web server, the load is really low
-  if (client.connect("g.cn", 80))
+  if (client.connect("google.com", 80))
     {
       // Make an HTTP 1.1 request which is missing a Host: header
       // compliant servers are required to answer with an error that includes
@@ -214,6 +212,6 @@ unsigned long webUnixTime (Client &client)
   client.flush();
   client.stop();
 
-  return time - 28800ul;
+  return time - 28800ul;  // -8h for PST
 }
 
